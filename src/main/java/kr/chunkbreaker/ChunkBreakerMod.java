@@ -58,7 +58,7 @@ public final class ChunkBreakerMod implements ModInitializer {
         private final ChunkPos chunk;
         private final int bottomY;
         private final int warningY;
-        private final List<Entity> warningDisplays = new ArrayList<>();
+        private final List<Display.BlockDisplay> warningDisplays = new ArrayList<>();
         private int topY;
         private int warningTicks = WARNING_TICKS;
         private boolean warningSpawned;
@@ -80,6 +80,8 @@ public final class ChunkBreakerMod implements ModInitializer {
 
             if (warningTicks > 0) {
                 warningTicks--;
+                if (warningTicks == 40) setWarningColor("minecraft:yellow_stained_glass");
+                if (warningTicks == 20) setWarningColor("minecraft:red_stained_glass");
                 if (warningTicks == 40 || warningTicks == 20) playWarningSound();
                 return false;
             }
@@ -113,21 +115,42 @@ public final class ChunkBreakerMod implements ModInitializer {
             int minZ = chunk.getMinBlockZ();
             int maxX = chunk.getMaxBlockX();
 
-            // Red stained-glass block displays mark all four edges of the 16x16 chunk.
-            for (int i = 0; i < 16; i++) {
-                spawnDisplay(minX + i, warningY, minZ);
-                spawnDisplay(minX + i, warningY, maxX == minX ? minZ : chunk.getMaxBlockZ());
-                spawnDisplay(minX, warningY, minZ + i);
-                spawnDisplay(maxX, warningY, minZ + i);
-            }
+            int maxZ = chunk.getMaxBlockZ();
+            int height = topY - bottomY + 1;
+
+            // Four huge, thin block displays form a world-border-like wall from world bottom to world top.
+            spawnWall(minX, bottomY, minZ, 16.0F, height, 0.08F);
+            spawnWall(minX, bottomY, maxZ + 0.92, 16.0F, height, 0.08F);
+            spawnWall(minX, bottomY, minZ, 0.08F, height, 16.0F);
+            spawnWall(maxX + 0.92, bottomY, minZ, 0.08F, height, 16.0F);
         }
 
-        private void spawnDisplay(double x, double y, double z) {
-            Display.BlockDisplay display = new Display.BlockDisplay((EntityType<? extends Display.BlockDisplay>) BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse("minecraft:block_display")), level);
-            display.setBlockState(BuiltInRegistries.BLOCK.getValue(Identifier.parse("minecraft:red_stained_glass")).defaultBlockState());
-            display.setPos(x, y + 0.02, z);
+        private void spawnWall(double x, double y, double z, float scaleX, float scaleY, float scaleZ) {
+            var type = (EntityType<? extends Display.BlockDisplay>) BuiltInRegistries.ENTITY_TYPE
+                    .getValue(Identifier.parse("minecraft:block_display"));
+            if (type == null) return;
+
+            Display.BlockDisplay display = new Display.BlockDisplay(type, level);
+            display.setBlockState(BuiltInRegistries.BLOCK
+                    .getValue(Identifier.parse("minecraft:green_stained_glass")).defaultBlockState());
+            display.setPos(x, y, z);
+            display.setTransformation(new com.mojang.math.Transformation(
+                    new org.joml.Vector3f(0.0F, 0.0F, 0.0F),
+                    null,
+                    new org.joml.Vector3f(scaleX, scaleY, scaleZ),
+                    null));
             level.addFreshEntity(display);
             warningDisplays.add(display);
+        }
+
+        private void setWarningColor(String blockId) {
+            var block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(blockId));
+            if (block == null) return;
+            for (Display.BlockDisplay display : warningDisplays) {
+                if (!display.isRemoved()) {
+                    display.setBlockState(block.defaultBlockState());
+                }
+            }
         }
 
         private void removeWarningBorder() {

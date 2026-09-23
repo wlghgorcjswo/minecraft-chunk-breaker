@@ -4,17 +4,22 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import org.joml.Vector3f;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 public final class ChunkBreakerMod implements ModInitializer {
     private static final int SLICE_HEIGHT = 16;
+    private static final int WARNING_TICKS = 60; // 3 seconds at 20 TPS
     private static final Deque<BreakJob> JOBS = new ArrayDeque<>();
+    private static final DustParticleOptions RED_DUST =
+            new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), 1.5F);
 
     @Override
     public void onInitialize() {
@@ -38,7 +43,7 @@ public final class ChunkBreakerMod implements ModInitializer {
             BreakJob job = JOBS.pollFirst();
             if (job == null) break;
 
-            if (!job.eraseNextSlice()) {
+            if (!job.tick()) {
                 JOBS.addLast(job);
             }
         }
@@ -49,12 +54,51 @@ public final class ChunkBreakerMod implements ModInitializer {
         private final ChunkPos chunk;
         private final int bottomY;
         private int topY;
+        private int warningTicks = WARNING_TICKS;
 
         private BreakJob(ServerLevel level, ChunkPos chunk, int topY, int bottomY) {
             this.level = level;
             this.chunk = chunk;
             this.topY = topY;
             this.bottomY = bottomY;
+        }
+
+        private boolean tick() {
+            if (warningTicks > 0) {
+                showWarningBorder();
+                warningTicks--;
+                return false;
+            }
+
+            return eraseNextSlice();
+        }
+
+        private void showWarningBorder() {
+            int minX = chunk.getMinBlockX();
+            int minZ = chunk.getMinBlockZ();
+            int maxX = chunk.getMaxBlockX() + 1;
+            int maxZ = chunk.getMaxBlockZ() + 1;
+
+            // Draw a visible red rectangle around the target chunk near the surface/player area.
+            // Multiple horizontal layers make the warning easier to see from different heights.
+            int centerX = minX + 8;
+            int centerZ = minZ + 8;
+            int surfaceY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,
+                    centerX, centerZ) + 1;
+
+            for (int dy = 0; dy <= 6; dy += 3) {
+                double y = surfaceY + dy + 0.1;
+                for (int i = 0; i <= 16; i++) {
+                    spawnRed(minX + i, y, minZ);
+                    spawnRed(minX + i, y, maxZ);
+                    spawnRed(minX, y, minZ + i);
+                    spawnRed(maxX, y, minZ + i);
+                }
+            }
+        }
+
+        private void spawnRed(double x, double y, double z) {
+            level.sendParticles(RED_DUST, x, y, z, 1, 0.0, 0.0, 0.0, 0.0);
         }
 
         private boolean eraseNextSlice() {

@@ -21,7 +21,7 @@ public final class ChunkBreakerMod implements ModInitializer {
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (!(level instanceof ServerLevel serverLevel)) return;
 
-            ChunkPos chunk = new ChunkPos(pos);
+            ChunkPos chunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
             int topY = serverLevel.getMaxY() - 1;
             int bottomY = serverLevel.getMinY();
 

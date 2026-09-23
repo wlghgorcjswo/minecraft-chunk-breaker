@@ -119,10 +119,10 @@ public final class ChunkBreakerMod implements ModInitializer {
             int height = topY - bottomY + 1;
 
             // Four huge, thin block displays form a world-border-like wall from world bottom to world top.
-            spawnWall(minX, bottomY, minZ, 16.0F, height, 0.08F);
-            spawnWall(minX, bottomY, maxZ + 0.92, 16.0F, height, 0.08F);
-            spawnWall(minX, bottomY, minZ, 0.08F, height, 16.0F);
-            spawnWall(maxX + 0.92, bottomY, minZ, 0.08F, height, 16.0F);
+            spawnWall(minX, bottomY, minZ - 0.12, 16.0F, height, 0.04F);
+            spawnWall(minX, bottomY, maxZ + 1.08, 16.0F, height, 0.04F);
+            spawnWall(minX - 0.12, bottomY, minZ, 0.04F, height, 16.0F);
+            spawnWall(maxX + 1.08, bottomY, minZ, 0.04F, height, 16.0F);
         }
 
         private void spawnWall(double x, double y, double z, float scaleX, float scaleY, float scaleZ) {

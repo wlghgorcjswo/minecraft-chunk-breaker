@@ -118,11 +118,15 @@ public final class ChunkBreakerMod implements ModInitializer {
             int maxZ = chunk.getMaxBlockZ();
             int height = topY - bottomY + 1;
 
-            // Four huge, thin block displays form a world-border-like wall from world bottom to world top.
-            spawnWall(minX, bottomY, minZ - 0.12, 16.0F, height, 0.04F);
-            spawnWall(minX, bottomY, maxZ + 1.08, 16.0F, height, 0.04F);
-            spawnWall(minX - 0.12, bottomY, minZ, 0.04F, height, 16.0F);
-            spawnWall(maxX + 1.08, bottomY, minZ, 0.04F, height, 16.0F);
+            // Split each wall into 16-block-high display segments.
+            // A single hundreds-of-blocks-tall display can be culled by the client when its entity origin is off-screen.
+            for (int y = bottomY; y <= topY; y += 16) {
+                float segmentHeight = Math.min(16, topY - y + 1);
+                spawnWall(minX, y, minZ - 0.12, 16.0F, segmentHeight, 0.04F);
+                spawnWall(minX, y, maxZ + 1.08, 16.0F, segmentHeight, 0.04F);
+                spawnWall(minX - 0.12, y, minZ, 0.04F, segmentHeight, 16.0F);
+                spawnWall(maxX + 1.08, y, minZ, 0.04F, segmentHeight, 16.0F);
+            }
         }
 
         private void spawnWall(double x, double y, double z, float scaleX, float scaleY, float scaleZ) {

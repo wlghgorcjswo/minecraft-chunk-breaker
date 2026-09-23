@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "chunkbreaker",
+  "version": "${version}",
+  "name": "Chunk Breaker",
+  "description": "Break one block to erase the exact chunk it belongs to, top-down without drops.",
+  "authors": ["Moon"],
+  "license": "CC0-1.0",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["kr.chunkbreaker.ChunkBreakerMod"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

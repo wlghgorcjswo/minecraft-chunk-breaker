@@ -4,21 +4,23 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 
 public final class ChunkBreakerMod implements ModInitializer {
     private static final int SLICE_HEIGHT = 16;
-    private static final int WARNING_TICKS = 60; // 3 seconds at 20 TPS
+    private static final int WARNING_TICKS = 60;
     private static final Deque<BreakJob> JOBS = new ArrayDeque<>();
-    private static final DustParticleOptions RED_DUST =
-            new DustParticleOptions(0xFF0000, 1.5F);
 
     @Override
     public void onInitialize() {
@@ -29,7 +31,7 @@ public final class ChunkBreakerMod implements ModInitializer {
             int topY = serverLevel.getMaxY() - 1;
             int bottomY = serverLevel.getMinY();
 
-            JOBS.addLast(new BreakJob(serverLevel, chunk, topY, bottomY));
+            JOBS.addLast(new BreakJob(serverLevel, chunk, topY, bottomY, pos.getY()));
         });
 
         ServerTickEvents.END_SERVER_TICK.register(ChunkBreakerMod::tickJobs);
@@ -52,52 +54,67 @@ public final class ChunkBreakerMod implements ModInitializer {
         private final ServerLevel level;
         private final ChunkPos chunk;
         private final int bottomY;
+        private final int warningY;
+        private final List<Entity> warningDisplays = new ArrayList<>();
         private int topY;
         private int warningTicks = WARNING_TICKS;
+        private boolean warningSpawned;
 
-        private BreakJob(ServerLevel level, ChunkPos chunk, int topY, int bottomY) {
+        private BreakJob(ServerLevel level, ChunkPos chunk, int topY, int bottomY, int warningY) {
             this.level = level;
             this.chunk = chunk;
             this.topY = topY;
             this.bottomY = bottomY;
+            this.warningY = warningY;
         }
 
         private boolean tick() {
+            if (!warningSpawned) {
+                spawnWarningBorder();
+                warningSpawned = true;
+            }
+
             if (warningTicks > 0) {
-                showWarningBorder();
                 warningTicks--;
                 return false;
+            }
+
+            if (!warningDisplays.isEmpty()) {
+                removeWarningBorder();
             }
 
             return eraseNextSlice();
         }
 
-        private void showWarningBorder() {
+        private void spawnWarningBorder() {
             int minX = chunk.getMinBlockX();
             int minZ = chunk.getMinBlockZ();
-            int maxX = chunk.getMaxBlockX() + 1;
-            int maxZ = chunk.getMaxBlockZ() + 1;
+            int maxX = chunk.getMaxBlockX();
 
-            // Draw a visible red rectangle around the target chunk near the surface/player area.
-            // Multiple horizontal layers make the warning easier to see from different heights.
-            int centerX = minX + 8;
-            int centerZ = minZ + 8;
-            int surfaceY = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,
-                    centerX, centerZ) + 1;
-
-            for (int dy = 0; dy <= 6; dy += 3) {
-                double y = surfaceY + dy + 0.1;
-                for (int i = 0; i <= 16; i++) {
-                    spawnRed(minX + i, y, minZ);
-                    spawnRed(minX + i, y, maxZ);
-                    spawnRed(minX, y, minZ + i);
-                    spawnRed(maxX, y, minZ + i);
-                }
+            // Red stained-glass block displays mark all four edges of the 16x16 chunk.
+            for (int i = 0; i < 16; i++) {
+                spawnDisplay(minX + i, warningY, minZ);
+                spawnDisplay(minX + i, warningY, maxX == minX ? minZ : chunk.getMaxBlockZ());
+                spawnDisplay(minX, warningY, minZ + i);
+                spawnDisplay(maxX, warningY, minZ + i);
             }
         }
 
-        private void spawnRed(double x, double y, double z) {
-            level.sendParticles(RED_DUST, x, y, z, 1, 0.0, 0.0, 0.0, 0.0);
+        private void spawnDisplay(double x, double y, double z) {
+            Display.BlockDisplay display = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level);
+            display.setBlockState(Blocks.RED_STAINED_GLASS.defaultBlockState());
+            display.setPos(x, y + 0.02, z);
+            level.addFreshEntity(display);
+            warningDisplays.add(display);
+        }
+
+        private void removeWarningBorder() {
+            for (Entity display : warningDisplays) {
+                if (!display.isRemoved()) {
+                    display.discard();
+                }
+            }
+            warningDisplays.clear();
         }
 
         private boolean eraseNextSlice() {

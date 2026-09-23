@@ -9,7 +9,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
-import org.joml.Vector3f;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -19,7 +18,7 @@ public final class ChunkBreakerMod implements ModInitializer {
     private static final int WARNING_TICKS = 60; // 3 seconds at 20 TPS
     private static final Deque<BreakJob> JOBS = new ArrayDeque<>();
     private static final DustParticleOptions RED_DUST =
-            new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), 1.5F);
+            new DustParticleOptions(0xFF0000, 1.5F);
 
     @Override
     public void onInitialize() {

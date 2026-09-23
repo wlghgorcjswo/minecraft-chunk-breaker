@@ -9,6 +9,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 
@@ -71,19 +74,38 @@ public final class ChunkBreakerMod implements ModInitializer {
         private boolean tick() {
             if (!warningSpawned) {
                 spawnWarningBorder();
+                playWarningSound();
                 warningSpawned = true;
             }
 
             if (warningTicks > 0) {
                 warningTicks--;
+                if (warningTicks == 40 || warningTicks == 20) playWarningSound();
                 return false;
             }
 
             if (!warningDisplays.isEmpty()) {
                 removeWarningBorder();
+                playBreakSound();
             }
 
             return eraseNextSlice();
+        }
+
+        private void playWarningSound() {
+            var sound = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse("minecraft:block.note_block.pling"));
+            if (sound != null) {
+                level.playSound(null, chunk.getMiddleBlockX(), warningY, chunk.getMiddleBlockZ(),
+                        sound, SoundSource.BLOCKS, 1.2F, 0.8F);
+            }
+        }
+
+        private void playBreakSound() {
+            var sound = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse("minecraft:entity.generic.explode"));
+            if (sound != null) {
+                level.playSound(null, chunk.getMiddleBlockX(), warningY, chunk.getMiddleBlockZ(),
+                        sound, SoundSource.BLOCKS, 1.5F, 0.9F);
+            }
         }
 
         private void spawnWarningBorder() {
@@ -101,8 +123,8 @@ public final class ChunkBreakerMod implements ModInitializer {
         }
 
         private void spawnDisplay(double x, double y, double z) {
-            Display.BlockDisplay display = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level);
-            display.setBlockState(Blocks.RED_STAINED_GLASS.defaultBlockState());
+            Display.BlockDisplay display = new Display.BlockDisplay((EntityType<? extends Display.BlockDisplay>) BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse("minecraft:block_display")), level);
+            display.setBlockState(BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse("minecraft:red_stained_glass")).defaultBlockState());
             display.setPos(x, y + 0.02, z);
             level.addFreshEntity(display);
             warningDisplays.add(display);

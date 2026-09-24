@@ -34,7 +34,7 @@ public final class ChunkBreakerMod implements ModInitializer {
             if (!(level instanceof ServerLevel serverLevel)) return;
 
             ChunkPos chunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
-            JobKey key = new JobKey(serverLevel.dimension().location().toString(), chunk.x, chunk.z);
+            JobKey key = new JobKey(serverLevel.dimension().toString(), chunk.x(), chunk.z());
 
             // Only one destruction job per chunk. Repeated block breaks in the same chunk
             // no longer stack warning/explosion sounds or duplicate the visual border.

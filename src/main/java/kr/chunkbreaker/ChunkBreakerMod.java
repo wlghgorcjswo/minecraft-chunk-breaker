@@ -19,11 +19,14 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class ChunkBreakerMod implements ModInitializer {
     private static final int SLICE_HEIGHT = 16;
     private static final int WARNING_TICKS = 60;
     private static final Deque<BreakJob> JOBS = new ArrayDeque<>();
+    private static final Set<JobKey> ACTIVE_CHUNKS = new HashSet<>();
 
     @Override
     public void onInitialize() {
@@ -31,10 +34,16 @@ public final class ChunkBreakerMod implements ModInitializer {
             if (!(level instanceof ServerLevel serverLevel)) return;
 
             ChunkPos chunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
+            JobKey key = new JobKey(serverLevel.dimension().location().toString(), chunk.x, chunk.z);
+
+            // Only one destruction job per chunk. Repeated block breaks in the same chunk
+            // no longer stack warning/explosion sounds or duplicate the visual border.
+            if (!ACTIVE_CHUNKS.add(key)) return;
+
             int topY = serverLevel.getMaxY() - 1;
             int bottomY = serverLevel.getMinY();
 
-            JOBS.addLast(new BreakJob(serverLevel, chunk, topY, bottomY, pos.getY()));
+            JOBS.addLast(new BreakJob(serverLevel, chunk, topY, bottomY, pos.getY(), key));
         });
 
         ServerTickEvents.END_SERVER_TICK.register(ChunkBreakerMod::tickJobs);
@@ -49,26 +58,32 @@ public final class ChunkBreakerMod implements ModInitializer {
 
             if (!job.tick()) {
                 JOBS.addLast(job);
+            } else {
+                ACTIVE_CHUNKS.remove(job.key);
             }
         }
     }
+
+    private record JobKey(String dimension, int chunkX, int chunkZ) {}
 
     private static final class BreakJob {
         private final ServerLevel level;
         private final ChunkPos chunk;
         private final int bottomY;
         private final int warningY;
+        private final JobKey key;
         private final List<Display.BlockDisplay> warningDisplays = new ArrayList<>();
         private int topY;
         private int warningTicks = WARNING_TICKS;
         private boolean warningSpawned;
 
-        private BreakJob(ServerLevel level, ChunkPos chunk, int topY, int bottomY, int warningY) {
+        private BreakJob(ServerLevel level, ChunkPos chunk, int topY, int bottomY, int warningY, JobKey key) {
             this.level = level;
             this.chunk = chunk;
             this.topY = topY;
             this.bottomY = bottomY;
             this.warningY = warningY;
+            this.key = key;
         }
 
         private boolean tick() {

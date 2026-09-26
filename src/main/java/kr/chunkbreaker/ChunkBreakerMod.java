@@ -23,8 +23,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 public final class ChunkBreakerMod implements ModInitializer {
-    private static final int SLICE_HEIGHT = 16;
-    private static final int WARNING_TICKS = 60;
+    private static final int SLICE_HEIGHT = 2048;
+    private static final int WARNING_TICKS = 0;
     private static final Deque<BreakJob> JOBS = new ArrayDeque<>();
     private static final Set<JobKey> ACTIVE_CHUNKS = new HashSet<>();
 
